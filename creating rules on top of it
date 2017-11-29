@@ -1,0 +1,210 @@
+rm(list = ls())
+# importing the data
+
+train_data <- read.csv("C:/Users/Arun/Desktop/SRAVAN FINAL PHD SUBMISSION/phd/20170916_Batch 28_CSE9099c_PHD_MLProblem/train_PHD.csv", header = T)
+
+base_vehcle <- read.csv("C:/Users/Arun/Desktop/SRAVAN FINAL PHD SUBMISSION/phd/20170916_Batch 28_CSE9099c_PHD_MLProblem/Base_Vehicle_Data_PHD.csv", header = T)
+
+vehcles_collision <- read.csv("C:/Users/Arun/Desktop/SRAVAN FINAL PHD SUBMISSION/phd/20170916_Batch 28_CSE9099c_PHD_MLProblem/NumberOfvehiclesbyCollosion_PHD.csv", header = T)
+
+Accident_data_validation<- read.csv("C:/Users/Arun/Desktop/SRAVAN FINAL PHD SUBMISSION/phd/20170916_Batch 28_CSE9099c_PHD_MLProblem/validation_PHD.csv",header=TRUE)
+
+Accident_data_test<- read.csv("C:/Users/Arun/Desktop/SRAVAN FINAL PHD SUBMISSION/phd/20170916_Batch 28_CSE9099c_PHD_MLProblem/test_NoTarget_PHD.csv",header=TRUE)
+
+#test_data <- read.csv("C:/Users/Arun/Desktop/phd/20170916_Batch 28_CSE9099c_PHD_MLProblem/test_NoTarget_PHD.csv", header = T)
+
+str(base_vehcle)
+
+## Converting some variables to categorical variables
+train_data$Collision.Severity<-as.factor(as.character(train_data$Collision.Severity))
+
+## Finding the percentage of missing values in each variable
+calc_missing<-function(x)
+{
+  b<-(sum(is.na(x))/length(x))*100
+  return(b)
+}
+
+## Find the missing values for each variable
+apply(train_data[,c(1:17)],2,FUN = calc_missing)
+
+## Result -- 2.86% - Policing Area, 2.97% - Hour of Collision, 2.86% - Junction Detail, 3.22% - Junction Control,
+## 2.75% - Pedestrain Crossing - Human Control, 3.13% - Pedestrain Crossing - Physical Control, 2.81% - Road Surface
+## Conditions, 2.69% - Special Conditions at Site
+
+## Dropping all missing values for analysis as they are very less in percentage
+train_data<-na.omit(train_data)
+nrow(train_data)
+
+## -------------------------- A Part of Feature Engineering --------------------------------------------------
+## explorating the accidents in 4 quarters of the day, so binning the 24 hours variable into 4 quarters of the day
+binning=function(x)
+{
+  if(x>=1 & x<=6)
+  {
+    return(1)
+  }
+  if(x>6 & x<=12)
+  {
+    return(2)
+  }
+  if(x>12 & x<=18)
+  {
+    return(3)
+  }
+  else
+  {
+    return(4)
+  }
+}
+
+## Applying the binning function on each cell
+train_data$time_of_day<-sapply(train_data$Hour.of.Collision..24.hour.,FUN = binning)
+str(train_data)
+
+## explorating the accidents in 5 weeks of the month, so binning the 31 days variable into 5 weeks of the month
+binning_week=function(x)
+{
+  if(x>=1 & x<=7)
+  {
+    return(1)
+  }
+  if(x>7 & x<=14)
+  {
+    return(2)
+  }
+  if(x>14 & x<=21)
+  {
+    return(3)
+  }
+  if(x>21 & x<=28)
+  {
+    return(4)
+  }
+  else
+  {
+    return(5)
+  }
+}
+
+## Applying binning function on Day of month
+train_data$week_of_month<-sapply(train_data$Day.of.Collision,FUN = binning_week)
+str(train_data)
+
+## Viewing the structure of the datasets
+str(train_data)
+str(base_vehcle)
+#str(ff_data)
+sum(is.na(base_vehcle))  ## o/p -> 0 missing values
+
+sum(is.na(vehcles_collision))  ## o/p -> 0 missing values
+
+
+##reshape Library to convert data to pivot
+
+library(reshape)
+
+colnames(base_vehcle)
+
+#collision refernce is the common used in all pivots
+
+dont_rename = "Collision.Reference.No."
+
+#Function to rename columns with combination of actual column + value
+
+changecolname <- function(oldcolnames,newcolname,dont_rename){
+  newcolnames = c()
+  for (eacholdname in oldcolnames){
+    if (eacholdname == dont_rename){
+      newcolnames = c(newcolnames,eacholdname)
+    }
+    else{
+      newcolnames = c(newcolnames,paste(newcolname,eacholdname))
+    }
+  }
+  return (newcolnames)
+}
+
+#use dplyr library to join different pivot data sets
+
+library(dplyr)
+
+#Columns in the data frame for which we have to generate pivots
+
+aggr_cols = c("Vehicle.Type","Towing.and.Articulation","Vehicle.Manoeuvre","Vehicle.Location.at.Time.of.Impact","Vehicle.Location.at.Time.of.Impact",
+              "Junction.Location.of.Vehicle.at.Time.of.Impact","Skidding...Overturning","First.Object.Hit.in.Carriageway",
+              "Vehicle.Leaving.Carriageway","First.Object.Hit.off.Carriageway","First.Point.of.Impact",
+              "Sex.of.Driver","Age.of.Driver","Hit.and.Run","Foreign.Registered.Vehicle")
+
+
+#Function to generate pivots and join in with the final data. returns the final data
+
+pivot_data <- function(aggr_cols,df,dont_rename){
+  final_data=data.frame()
+  for (each in aggr_cols){
+    print (each)
+    temp_aggr = cast(df[,c(dont_rename,each,"Vehicle.Reference.No")],as.formula(paste(dont_rename,"~",each)))
+    colnames(temp_aggr) = changecolname(colnames(temp_aggr),each,dont_rename)
+    if (nrow(final_data) == 0){
+      final_data = temp_aggr
+    } else {
+      final_data = inner_join(final_data, temp_aggr,by = c("Collision.Reference.No.","Collision.Reference.No."))
+    }
+  }
+  return (final_data)
+}
+
+final_data = pivot_data(aggr_cols,base_vehcle,dont_rename)
+colnames(final_data)
+head(final_data)
+
+#Join final data with no of vehciles data
+
+final_data = inner_join(final_data, vehcles_collision,by = c("Collision.Reference.No.","Collision.Reference.No."))
+
+#Join final data with train data
+str(train_data)
+train_data = inner_join(final_data, train_data,by = c("Collision.Reference.No.","Collision.Reference.No."))
+
+
+## Removing Collision Reference No. from dataset.
+pattern_data<-train_data[,-1]
+
+
+cat.data2 <- data.frame(apply(pattern_data,2,function(x){if(is.factor(x)==F){as.factor(x)}}))
+str(cat.data2)
+
+## Reviewing the structure of new dataset cat.data2
+summary(cat.data2)
+
+#install.packages("arules")
+library(arules)
+
+## Converting the data into transactions data
+transactions <- as(cat.data2, "transactions")
+str(transactions)
+
+## Summary of transactions data - collision dataset in this case
+summary(transactions)
+
+## Density of items for each variable (Support of each item)
+itemFrequency(transactions)
+
+## Plot of each attribute density as histogram
+itemFrequencyPlot(transactions)
+
+# play with the support value from 0.5 to 0.8 to see bar chart of variable.
+## Plots only those attributes with density >=0.5, => there are only 15 such attributes
+itemFrequencyPlot(transactions, support = 0.5, cex.names=0.8)
+##colision servinity ---2 support0.02,confidence= 0.01
+##colision servinity ----1 support0.01,confidence=0.01
+
+## Building algorithm on the transactions dataset with minimum support of 5% and confidence of 95%
+rules <- apriori(transactions, parameter = list(support = 0.5, confidence = 0.95))
+summary(rules)
+
+##-----------------------------   Total No. of Rules Generated are 68905 -------------------------- ##
+
+## View the rules generated -- No to run this... takes lot of time
+inspect(rules)
+
