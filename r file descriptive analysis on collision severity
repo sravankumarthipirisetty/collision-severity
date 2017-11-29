@@ -1,0 +1,216 @@
+#setwd
+train_PHD <- read.csv("C:/Users/Arun/Desktop/SRAVAN FINAL PHD SUBMISSION/phd/20170916_Batch 28_CSE9099c_PHD_MLProblem/train_PHD.csv", header = T)
+
+##check for NA values
+sum(is.na(train_PHD))
+
+apply(train_PHD,2,function(x){sum(is.na(x)/length(x)*100)})
+colnames(train_PHD)
+
+## check for cross imbalance
+
+table(train_PHD$Collision.Severity)
+barplot(table(train_PHD$Collision.Severity))
+prop.table(table(train_PHD$Collision.Severity))
+
+
+##cross imbalance in the data
+
+#1          2          3 
+#0.01284747 0.09588881 0.89126372
+#Remove features which has Most Nulls and same values across all rows and the columns
+col_nul=apply(train_PHD,2,FUN=function(x){(sum(is.na(x)))})
+col_nul_var=which(col_nul>0.3*nrow(train_PHD))
+row_nul=apply(train_PHD,1,FUN=function(x){(sum(is.na(x)))})
+row_nul_var=which(row_nul>0.3*ncol(train_PHD))
+rem_col=apply(train_PHD,2,FUN=function(x){(length(unique(x)))})
+rem_col_var=which(rem_col==1)
+if(length(col_nul_var)>0) {  train_PHD=train_PHD[-col_nul_var] }
+if(length(row_nul_var)>0) { train_PHD=train_PHD[-row_nul_var,] }
+if(length(rem_col_var)>0) { train_PHD=train_PHD[-rem_col_var] }
+
+#Remove duplicates
+train_PHD<-unique(train_PHD)
+dim(train_PHD) #no duplicates
+
+##Analysing the target variable
+table(train_PHD$Collision.Severity) 
+prop.table(table(train_PHD$Collision.Severity)) ##There is class imbalance,class 1 is only 1% n 2 is 9%
+histogram(train_PHD$Collision.Severity)
+
+#Analysing Week.Day of collision variable
+table(train_PHD$Weekday.of.Collision)
+train_PHD$Weekday.of.Collision<-as.factor(train_PHD$Weekday.of.Collision)
+sum(is.na(train_PHD$Weekday.of.Collision))#no missing values
+#Distribution of Collision.Severity w.r.to Weekday.of.collision
+ggplot(train_PHD, aes(x = Weekday.of.Collision, fill = factor(Collision.Severity))) +
+  geom_bar() +
+  xlab("Weekday of collision") +
+  ylab("Total Count") +
+  labs(fill = "Collision.Severity") 
+#The no of accidents of level 3 are more in all the week days
+
+##Analysing Month of the year to Collision.Severity 
+table(train_PHD$Month.of.Collision)
+sum(is.na(train_PHD$Month.of.Collision))
+ggplot(train_PHD, aes(x = Month.of.Collision, fill = factor(Collision.Severity))) +
+  geom_bar() +
+  xlab("Month of collision") +
+  ylab("Total Count") +
+  labs(fill = "Collision.Severity") 
+#The no of accidents of level 3 are more in all the all months
+
+##Analysing MOnth nd  weeks with target
+
+ggplot(train_PHD, aes(x = Month.of.Collision, fill = factor(Collision.Severity))) +
+  geom_bar() +
+  facet_wrap(~Weekday.of.Collision) + 
+  ggtitle("Weekday.of.Collision wrt Months") +
+  xlab("Months") +
+  ylab("Total Count") +
+  labs(fill = "Collision.Severity")
+
+ggplot(train_PHD, aes(x = Weekday.of.Collision, fill = factor(Collision.Severity))) +
+  geom_bar() +
+  facet_wrap(~Month.of.Collision) + 
+  ggtitle("Weekday.of.Collision wrt Months") +
+  xlab("Week days") +
+  ylab("Total Count") +
+  labs(fill = "Collision.Severity")
+
+#Analyse carriage away type with respect to traget
+table(train_PHD$Carriageway.Type)
+train_PHD$Carriageway.Type<-as.factor(train_PHD$Carriageway.Type)
+ggplot(train_PHD, aes(x = Carriageway.Type, fill = factor(Collision.Severity))) +
+  geom_bar() +
+  ggtitle("Weekday.of.Collision wrt Months") +
+  xlab("Carriage away") +
+  ylab("Total Count") +
+  labs(fill = "Collision.Severity")
+#most of the accidents are at carrieage "13", all other are negligible
+
+##Analyse if any inference from month carriage and Collision.Severity
+ggplot(train_PHD, aes(x = Carriageway.Type, fill = factor(Collision.Severity))) +
+  geom_bar() +
+  facet_wrap(~Month.of.Collision) + 
+  ggtitle("Carriageaway and Months") +
+  xlab("Months") +
+  ylab("Total Count") +
+  labs(fill = "Collision.Severity")
+
+##analyse speed limit wrt target
+table(train_PHD$Speed.Limit)
+train_PHD$Speed.Limit<-as.factor(train_PHD$Speed.Limit)
+ggplot(train_PHD, aes(x = Speed.Limit, fill = factor(Collision.Severity))) +
+  geom_bar() +
+  ggtitle("Speed") +
+  xlab("Speed") +
+  ylab("Total Count") +
+  labs(fill = "Collision.Severity")
+#It is important that at 30 n 60 speed there are major effect of accidents
+
+ggplot(train_PHD, aes(x = Speed.Limit, fill = factor(Collision.Severity))) +
+  geom_bar() +
+  facet_wrap(~Month.of.Collision) + 
+  ggtitle("Speedlimit and Months") +
+  xlab("Speedlimit") +
+  ylab("Total Count") +
+  labs(fill = "Collision.Severity")
+#every onth is effected by speed 30 and 60
+
+ggplot(train_PHD, aes(x = Speed.Limit, fill = factor(Collision.Severity))) +
+  geom_bar() +
+  facet_wrap(~Month.of.Collision+Carriageway.Type) + 
+  ggtitle("Speedlimit and Months") +
+  xlab("SPeed limit") +
+  ylab("Total Count") +
+  labs(fill = "Collision.Severity")
+
+#it is most important that at value 1 the target value has affected alot
+
+ggplot(train_PHD, aes(x = Special.Conditions.at.Site, fill = factor(Collision.Severity))) +
+  geom_histogram() +
+  ggtitle("Special.Conditions.at.Site") +
+  xlab("Special.Conditions.at.Site") +
+  ylab("Total Count") +
+  labs(fill = "Collision.Severity")
+
+table(train_PHD$Pedestrian.Crossing...Physical.Control)
+#train_PHD$Pedestrian.Crossing...Physical.Control<-as.factor(train_PHD$Pedestrian.Crossing...Physical.Control)
+
+table(train_PHD$Pedestrian.Crossing...Human.Control)
+#train_PHD$Pedestrian.Crossing...Human.Control<-as.factor(train_PHD$Pedestrian.Crossing...Human.Control)
+table(train_PHD$Junction.Control)
+#train_PHD$Junction.Control<-as.factor(train_PHD$Junction.Control)
+
+table(train_PHD$Junction.Detail)
+#train_PHD$Junction.Detail<-as.factor(train_PHD$Junction.Detail)
+table(train_PHD$Junction.Detail)
+#train_PHD$Junction.Detail<-as.factor(train_PHD$Junction.Detail)
+ggplot(train_PHD, aes(x = Junction.Detail, fill = factor(Collision.Severity))) +
+  geom_bar() +
+  ggtitle("Junction.Detail") +
+  xlab("Junction.Detail") +
+  ylab("Total Count") +
+  labs(fill = "Collision.Severity")
+#At level 0 Junction.Detail has been effected
+
+table(train_PHD$Junction.Control)
+train_PHD$Junction.Control<-as.numeric(train_PHD$Junction.Control)
+ggplot(train_PHD, aes(x = Junction.Control, fill = factor(Collision.Severity))) +
+  geom_histogram() +
+  ggtitle("Junction.Control") +
+  xlab("Junction.Control") +
+  ylab("Total Count") +
+  labs(fill = "Collision.Severity")
+#Accidents at uncontrolled Juntions happen at higher rate
+
+table(train_PHD$Junction.Detail)
+ggplot(train_PHD, aes(x = Junction.Detail, fill = factor(Collision.Severity))) +
+  geom_histogram() +
+  ggtitle("Junction Detail") +
+  xlab("Junction") +
+  ylab("Total Count") +
+  labs(fill = "Collision.Severity")
+#Accidents near 20m of Juctions are high
+
+table(train_PHD$Pedestrian.Crossing...Human.Control)
+train_PHD$Light.Conditions<-as.factor(train_PHD$Pedestrian.Crossing...Human.Control)
+ggplot(train_PHD, aes(x = Pedestrian.Crossing...Human.Control, fill = factor(Collision.Severity))) +
+  geom_histogram() +
+  ggtitle("Pedestrian.Crossing...Human.Control") +
+  xlab("Pedestrian.Crossing...Human.Control") +
+  ylab("Total Count") +
+  labs(fill = "Collision.Severity")
+#None with in 50m have high accidents
+
+table(train_PHD$Pedestrian.Crossing...Physical.Control)
+train_PHD$Pedestrian.Crossing...Physical.Control<-as.numeric(train_PHD$Pedestrian.Crossing...Physical.Control)
+ggplot(train_PHD, aes(x = Pedestrian.Crossing...Physical.Control, fill = factor(Collision.Severity))) +
+  geom_histogram() +
+  ggtitle("Pedestrian.Crossing...Physical.Control") +
+  xlab("Pedestrian.Crossing...Physical.Control") +
+  ylab("Total Count") +
+  labs(fill = "Collision.Severity")
+
+table(train_PHD$Light.Conditions)
+train_PHD$Light.Conditions<-as.factor(train_PHD$Light.Conditions)
+ggplot(train_PHD, aes(x = Light.Conditions, fill = factor(Collision.Severity))) +
+  geom_bar() +
+  ggtitle("Light Condition") +
+  xlab("Light Condition") +
+  ylab("Total Count") +
+  labs(fill = "Collision.Severity")
+#Most accidents are in Day Light condition
+
+table(train_PHD$Weather.Conditions)
+train_PHD$Weather.Conditions<-as.factor(train_PHD$Weather.Conditions)
+ggplot(train_PHD, aes(x = Weather.Conditions, fill = factor(Collision.Severity))) +
+  geom_bar() +
+  ggtitle("Weather.Conditions") +
+  xlab("Weather.Conditions") +
+  ylab("Total Count") +
+  labs(fill = "Collision.Severity")
+
+
+
