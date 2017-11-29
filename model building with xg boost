@@ -1,0 +1,69 @@
+### imputing missing values with central imputation
+library(DMwR)
+Accident_data_validation <- centralImputation(Accident_data_validation)
+Accident_data_train <- centralImputation(Accident_data_train)
+Accident_data_test <- centralImputation(Accident_data_test)
+sum(is.na(Accident_data_train))
+sum(is.na(Accident_data_validation))
+sum(is.na(Accident_data_test))
+
+
+#Converting Factor to numeric on training dataset
+fac_var=sapply(Accident_data_train,FUN=is.factor)
+fac_col=which(fac_var==1)
+for (i in fac_col){Accident_data_train[i]=as.numeric(unlist(Accident_data_train[i]))}
+str(Accident_data_train)
+#Converting Factor to numeric on validation dataset
+fac_var=sapply(Accident_data_validation,FUN=is.factor)
+fac_col=which(fac_var==1)
+for (i in fac_col){Accident_data_validation[i]=as.numeric(unlist(Accident_data_validation[i]))}
+str(Accident_data_validation)
+#Converting Factor to numeric on test dataset
+fac_var=sapply(Accident_data_test,FUN=is.factor)
+fac_col=which(fac_var==1)
+for (i in fac_col){Accident_data_test[i]=as.numeric(unlist(Accident_data_test[i]))}
+str(Accident_data_test)
+
+## changing collision severity name as target 
+
+dim(Accident_data_train)
+names(Accident_data_train)[3]="Target"
+names(Accident_data_validation)[3]="Target"
+
+
+## removing both policing and weekdays
+Accident_data_train <- Accident_data_train[,-c(1,2,5)]
+str(Accident_data_train)
+
+Accident_data_validation <- Accident_data_validation[,-c(1,2,5)]
+str(Accident_data_validation)
+
+### building  model in xgboost
+
+
+library(xgboost)
+datainit1=Accident_data_train
+datainit1$Target=datainit1$Target-1
+str(datainit1)
+
+
+
+xgmodel = xgboost(data = as.matrix(datainit1[-1]), 
+                  label = datainit1$Target,
+                  objective = "multi:softmax",
+                  num_class=3,
+                  nrounds = 100)
+
+
+y_pred = predict(xgmodel, newdata = as.matrix(datainit1[-1]))
+table(datainit1$Target,y_pred)
+caret::confusionMatrix(datainit1$Target,y_pred,mode="everything")
+#Validation Data set
+datavalid1=Accident_data_validation
+datavalid1$Target<-as.numeric(datavalid1$Target)
+datavalid1$Target=datavalid1$Target-1
+y_pred_v = predict(xgmodel, newdata = as.matrix(datavalid1[-1]))
+table(datavalid1$Target,y_pred_v)
+caret::confusionMatrix(datavalid1$Target,y_pred_v,mode="everything")
+
+### got accuracy 89% but recall 25% on validation data
